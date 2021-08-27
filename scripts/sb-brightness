@@ -1,0 +1,5 @@
+#!/bin/sh
+
+bn="$(xbacklight -get)"
+a=${bn%.*}
+echo "^C3^盛 $a%^d^"

@@ -1,0 +1,17 @@
+XF86Audio{Lower,Raise}Volume
+	{lower,raise}-volume	
+
+XF86AudioMute
+	amixer sset Master toggle
+
+XF86MonBrightness{Down,Up}
+	xbacklight -{dec,inc} 5 && pkill -RTMIN+4 dwmblocks
+
+XF86Audio{Prev,Next}
+	playerctl {previous,next}
+
+XF86AudioPlay
+	playerctl play-pause
+
+alt + Tab
+	skippy-xd

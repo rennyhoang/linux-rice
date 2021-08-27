@@ -1,0 +1,10 @@
+#!/bin/env bash
+
+dunstctl close-all
+
+amixer -M set Master 1%- 
+
+vol=$(amixer -M sget Master | grep 'Right:'| awk -F'[][]' '{ print $2 }')
+
+notify-send -t 2000 "${vol} ﱜ"
+pkill -RTMIN+3 dwmblocks

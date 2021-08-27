@@ -1,0 +1,15 @@
+#!/bin/sh
+
+[ $(pamixer --get-mute) = true ] && echo 🔇 && exit
+
+vol="$(amixer -M get Master | tail -n1 | sed -r 's/.*\[(.*)%\].*/\1/')"
+
+if [ "$vol" -gt "70" ]; then
+	icon="墳 "
+elif [ "$vol" -lt "30" ]; then
+	icon="奄 "
+else
+	icon="奔 "
+fi
+
+echo "^C6^$icon$vol%^d^"

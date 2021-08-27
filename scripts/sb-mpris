@@ -1,0 +1,23 @@
+#!/bin/sh
+
+status=$(playerctl status)
+
+if [ "$status" != "Playing" ] && [ "$status" != "Paused" ]; then
+    exit 0 ;
+fi
+
+title=$(playerctl metadata --format '{{title}}')
+len=$(echo ${#title})
+
+if [ $len -gt 30 ];
+then title="$(echo ${title} | cut -c1-30)...";
+fi
+
+if [ "$status" = "Paused" ]; 
+    then status="⏸ " ; 
+elif [ "$status" = "Playing" ]; 
+    then status="🎧 " ; 
+else status="" ; 
+fi
+
+echo "^C4^$status$title^d^"

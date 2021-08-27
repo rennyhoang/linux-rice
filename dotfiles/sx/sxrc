@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# sound
+/usr/bin/pipewire &
+/usr/bin/pipewire-media-session &
+/usr/bin/pipewire-pulse &
+
+# necessary stuff 
+#otd &
+#udiskie &
+#lxsession &
+picom --experimental-backends -b
+
+# keyboard
+sxhkd &
+xbanish &
+skippy-xd --start-daemon &
+
+# pywal
+~/.config/wpg/wp_init.sh
+
+exec dbus-launch --sh-syntax --exit-with-session dwm 
