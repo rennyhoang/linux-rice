@@ -369,4 +369,3 @@ index 4465af1..faf40b7 100644
  void
  updatewindowtype(Client *c)
  {
-

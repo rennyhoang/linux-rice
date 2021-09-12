@@ -1,3 +1,26 @@
+diff --git a/Makefile b/Makefile
+index 470ac86..38240da 100644
+--- a/Makefile
++++ b/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include config.mk
+ 
+-SRC = st.c x.c
++SRC = st.c x.c hb.c
+ OBJ = $(SRC:.c=.o)
+ 
+ all: options st
+@@ -22,7 +22,8 @@ config.h:
+ 	$(CC) $(STCFLAGS) -c $<
+ 
+ st.o: config.h st.h win.h
+-x.o: arg.h config.h st.h win.h
++x.o: arg.h config.h st.h win.h hb.h
++hb.o: st.h
+ 
+ $(OBJ): config.h config.mk
+ 
 diff --git a/config.mk b/config.mk
 index ddc65ae..07a3d14 100644
 --- a/config.mk
@@ -200,6 +223,14 @@ index 2b2ba94..01bfb05 100644
  				(a).bg != (b).bg)
  #define TIMEDIFF(t1, t2)	((t1.tv_sec-t2.tv_sec)*1000 + \
  				(t1.tv_nsec-t2.tv_nsec)/1E6)
+@@ -33,6 +34,7 @@ enum glyph_attribute {
+ 	ATTR_WRAP       = 1 << 8,
+ 	ATTR_WIDE       = 1 << 9,
+ 	ATTR_WDUMMY     = 1 << 10,
++	ATTR_LIGA       = 1 << 11,
+ 	ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
+ };
+ 
 diff --git a/win.h b/win.h
 index a6ef1b9..bc0d180 100644
 --- a/win.h

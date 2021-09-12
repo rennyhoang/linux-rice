@@ -52,4 +52,3 @@ diff -up dwm-6.2/dwm.c dwm-6.2-attachbottom/dwm.c
  					attachstack(c);
  				}
  				if (m == selmon)
-
