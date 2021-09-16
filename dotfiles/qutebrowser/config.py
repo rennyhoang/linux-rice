@@ -29,8 +29,12 @@ config.set('content.javascript.enabled', True, 'chrome://*/*')
 config.set('content.javascript.enabled', True, 'qute://*/*')
 
 # Enable darkmode
-c.colors.webpage.darkmode.enabled = True
+c.colors.webpage.darkmode.enabled = False 
 c.colors.webpage.preferred_color_scheme = 'dark'
+
+# Completion
+c.completion.height = '25%'
+c.completion.scrollbar.width = 0
 
 # Content autoplay
 c.content.autoplay = False

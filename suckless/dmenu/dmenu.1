@@ -3,17 +3,11 @@
 dmenu \- dynamic menu
 .SH SYNOPSIS
 .B dmenu
-.RB [ \-bfsv ]
+.RB [ \-bfiv ]
 .RB [ \-l
 .IR lines ]
 .RB [ \-m
 .IR monitor ]
-.RB [ \-x
-.IR xoffset ]
-.RB [ \-y
-.IR yoffset ]
-.RB [ \-z
-.IR width ]
 .RB [ \-p
 .IR prompt ]
 .RB [ \-fn
@@ -25,14 +19,6 @@ dmenu \- dynamic menu
 .RB [ \-sb
 .IR color ]
 .RB [ \-sf
-.IR color ]
-.RB [ \-nhb
-.IR color ]
-.RB [ \-nhf
-.IR color ]
-.RB [ \-shb
-.IR color ]
-.RB [ \-shf
 .IR color ]
 .RB [ \-w
 .IR windowid ]
@@ -58,8 +44,8 @@ dmenu appears at the bottom of the screen.
 dmenu grabs the keyboard before reading stdin if not reading from a tty. This
 is faster, but will lock up X until stdin reaches end\-of\-file.
 .TP
-.B \-s
-dmenu matches menu items case sensitively.
+.B \-i
+dmenu matches menu items case insensitively.
 .TP
 .BI \-l " lines"
 dmenu lists items vertically, with the given number of lines.
@@ -67,24 +53,6 @@ dmenu lists items vertically, with the given number of lines.
 .BI \-m " monitor"
 dmenu is displayed on the monitor number supplied. Monitor numbers are starting
 from 0.
-.TP
-.BI \-x " xoffset"
-dmenu is placed at this offset measured from the left side of the monitor.
-Can be negative.
-If option
-.B \-m
-is present, the measurement will use the given monitor.
-.TP
-.BI \-y " yoffset"
-dmenu is placed at this offset measured from the top of the monitor.  If the
-.B \-b
-option is used, the offset is measured from the bottom.  Can be negative.
-If option
-.B \-m
-is present, the measurement will use the given monitor.
-.TP
-.BI \-z " width"
-sets the width of the dmenu window.
 .TP
 .BI \-p " prompt"
 defines the prompt to be displayed to the left of the input field.
@@ -106,18 +74,6 @@ defines the selected background color.
 .TP
 .BI \-sf " color"
 defines the selected foreground color.
-.TP
-.BI \-nhb " color"
-defines the normal highlight background color.
-.TP
-.BI \-nhf " color"
-defines the normal highlight foreground color.
-.TP
-.BI \-shb " color"
-defines the selected highlight background color.
-.TP
-.BI \-shf " color"
-defines the selected highlight foreground color.
 .TP
 .B \-v
 prints version information to stdout, then exits.

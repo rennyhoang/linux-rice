@@ -6,7 +6,7 @@ const unsigned int interval = 1000;
 /* text to show if no value can be retrieved */
 static const char unknown_str[] = "n/a";
 
-static const char volumecmd[] = "amixer sget Master | awk -F\"[][]\" '/%/ { print $2 }' | head -n1";
+// static const char volumecmd[] = "amixer sget Master | awk -F\"[][]\" '/%/ { print $2 }' | head -n1";
 
 /* maximum output string length */
 #define MAXLEN 2048
@@ -69,11 +69,12 @@ static const struct arg args[] = {
 	/* function format          argument */
 	//{ netspeed_tx, " %s ",     "wlan0" },
 	//{ netspeed_rx, " %s",     "wlan0" },
-	{ disk_perc, " %s%%",        "/" },
-	{ separator, " | ",           "" },
-	{ run_command, " %s", volumecmd },
-	{ separator, " | ",           "" },
+	{ separator, " ",           "" },
+	//{ run_command, " %s", volumecmd },
+	//{ separator, " | ",           "" },
 	{ battery_perc, " %s%%",     "BAT1" },
+	{ separator, " | ",           "" },
+	{ disk_perc, " %s%%",        "/" },
 	{ separator, " | ",           "" },
 	{ ram_used, " %s",           "" },
 	{ separator, " | ",           "" },

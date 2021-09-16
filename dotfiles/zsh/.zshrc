@@ -17,12 +17,12 @@ precmd() {
 # aliases
 alias ls="exa --icons --color always --group-directories-first"
 alias la="exa --icons --color always --group-directories-first -a"
-alias nv="lvim"
 
 source $ZDOTDIR/zsh-plugins.sh
 
 # starship prompt
 eval "$(starship init zsh)"
 
-# autostart
-#paleofetch
+(cat ~/.config/wpg/sequences &)
+
+pfetch
