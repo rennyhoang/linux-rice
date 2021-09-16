@@ -1,0 +1,3 @@
+# Download nerd font symbols
+
+curl -fLo "Symbols-2048-em Nerd Font Complete.ttf" https://github.com/ryanoasis/nerd-fonts/blob/38f76ec69fa3546784dd8beab3caf9c2ede9b92d/src/glyphs/Symbols-2048-em%20Nerd%20Font%20Complete.ttf
