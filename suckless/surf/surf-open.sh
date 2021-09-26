@@ -3,8 +3,8 @@
 # See the LICENSE file for copyright and license details. 
 #
 
-xidfile="$XDG_CACHE_HOME/tabbed-surf.xid"
-uri="https://duckduckgo.com"
+xidfile="$HOME/tmp/tabbed-surf.xid"
+uri=""
 
 if [ "$#" -gt 0 ];
 then

@@ -37,7 +37,7 @@
 #define LENGTH(x)               (sizeof(x) / sizeof(x[0]))
 #define CLEANMASK(mask)         (mask & (MODKEY|GDK_SHIFT_MASK))
 
-enum { AtomFind, AtomGo, AtomUri, AtomLast };
+enum { AtomFind, AtomGo, AtomUri, AtomUTF8, AtomLast };
 
 enum {
 	OnDoc   = WEBKIT_HIT_TEST_RESULT_CONTEXT_DOCUMENT,
@@ -130,11 +130,6 @@ typedef struct {
 } Button;
 
 typedef struct {
-	char *token;
-	char *uri;
-} SearchEngine;
-
-typedef struct {
 	const char *uri;
 	Parameter config[ParameterLast];
 	regex_t re;
@@ -182,7 +177,6 @@ static void spawn(Client *c, const Arg *a);
 static void msgext(Client *c, char type, const Arg *a);
 static void destroyclient(Client *c);
 static void cleanup(void);
-static int insertmode = 0;
 
 /* GTK/WebKit */
 static WebKitWebView *newview(Client *c, WebKitWebView *rv);
@@ -213,12 +207,15 @@ static void decidenewwindow(WebKitPolicyDecision *d, Client *c);
 static void decideresource(WebKitPolicyDecision *d, Client *c);
 static void insecurecontent(WebKitWebView *v, WebKitInsecureContentEvent e,
                             Client *c);
+static void downloadstarted(WebKitWebContext *wc, WebKitDownload *d,
+                            Client *c);
+static void responsereceived(WebKitDownload *d, GParamSpec *ps, Client *c);
+static void download(Client *c, WebKitURIResponse *r);
 static void webprocessterminated(WebKitWebView *v,
                                  WebKitWebProcessTerminationReason r,
                                  Client *c);
 static void closeview(WebKitWebView *v, Client *c);
 static void destroywin(GtkWidget* w, Client *c);
-static gchar *parseuri(const gchar *uri);
 
 /* Hotkeys */
 static void pasteuri(GtkClipboard *clipboard, const char *text, gpointer d);
@@ -236,26 +233,14 @@ static void togglefullscreen(Client *c, const Arg *a);
 static void togglecookiepolicy(Client *c, const Arg *a);
 static void toggleinspector(Client *c, const Arg *a);
 static void find(Client *c, const Arg *a);
-static void insert(Client *c, const Arg *a);
 
 /* Buttons */
 static void clicknavigate(Client *c, const Arg *a, WebKitHitTestResult *h);
 static void clicknewwindow(Client *c, const Arg *a, WebKitHitTestResult *h);
 static void clickexternplayer(Client *c, const Arg *a, WebKitHitTestResult *h);
 
-/* download-console */
-static void downloadstarted(WebKitWebContext *wc, WebKitDownload *d,
-                            Client *c);
-static void downloadfailed(WebKitDownload *d, GParamSpec *ps, void *arg);
-static void downloadfinished(WebKitDownload *d, GParamSpec *ps, void *arg);
-static gboolean decidedestination(WebKitDownload *d,
-                                  gchar *suggested_filename, void *arg);
-static void printprogress(WebKitDownload *d, GParamSpec *ps, void *arg);
-static void logdownload(WebKitDownload *d, gchar *tail);
-static void spawndls(Client *c, const Arg *a);
-
 static char winid[64];
-static char togglestats[12];
+static char togglestats[11];
 static char pagestats[2];
 static Atom atoms[AtomLast];
 static Window embed;
@@ -354,6 +339,7 @@ setup(void)
 	atoms[AtomFind] = XInternAtom(dpy, "_SURF_FIND", False);
 	atoms[AtomGo] = XInternAtom(dpy, "_SURF_GO", False);
 	atoms[AtomUri] = XInternAtom(dpy, "_SURF_URI", False);
+	atoms[AtomUTF8] = XInternAtom(dpy, "UTF8_STRING", False);
 
 	gtk_init(NULL, NULL);
 
@@ -365,9 +351,6 @@ setup(void)
 	cookiefile = buildfile(cookiefile);
 	scriptfile = buildfile(scriptfile);
 	certdir    = buildpath(certdir);
-	dlstatus   = buildpath(dlstatus);
-	dldir      = buildpath(dldir);
-
 	if (curconfig[Ephemeral].val.i)
 		cachedir = NULL;
 	else
@@ -594,7 +577,7 @@ loaduri(Client *c, const Arg *a)
 			url = g_strdup_printf("file://%s", path);
 			free(path);
 		} else {
-			url = parseuri(uri);
+			url = g_strdup_printf("http://%s", uri);
 		}
 		if (apath != uri)
 			free(apath);
@@ -626,7 +609,7 @@ void
 setatom(Client *c, int a, const char *v)
 {
 	XChangeProperty(dpy, c->xid,
-	                atoms[a], XA_STRING, 8, PropModeReplace,
+	                atoms[a], atoms[AtomUTF8], 8, PropModeReplace,
 	                (unsigned char *)v, strlen(v) + 1);
 	XSync(dpy, False);
 }
@@ -641,7 +624,8 @@ getatom(Client *c, int a)
 	unsigned char *p = NULL;
 
 	XSync(dpy, False);
-	XGetWindowProperty(dpy, c->xid, atoms[a], 0L, BUFSIZ, False, XA_STRING,
+	XGetWindowProperty(dpy, c->xid,
+	                   atoms[a], 0L, BUFSIZ, False, atoms[AtomUTF8],
 	                   &adummy, &idummy, &ldummy, &ldummy, &p);
 	if (p)
 		strncpy(buf, (char *)p, LENGTH(buf) - 1);
@@ -656,15 +640,6 @@ void
 updatetitle(Client *c)
 {
 	char *title;
-  char *mode;
-
-  if(insertmode != 0){
-    mode = "[INSERT]";
-  }
-  else {
-    mode = "[NORMAL]";
-  }
-
 	const char *name = c->overtitle ? c->overtitle :
 	                   c->title ? c->title : "";
 
@@ -673,11 +648,11 @@ updatetitle(Client *c)
 		getpagestats(c);
 
 		if (c->progress != 100)
-			title = g_strdup_printf("%s [%i%%] %s:%s | %s",
-			        mode, c->progress, togglestats, pagestats, name);
+			title = g_strdup_printf("[%i%%] %s:%s | %s",
+			        c->progress, togglestats, pagestats, name);
 		else
-			title = g_strdup_printf("%s %s:%s | %s",
-			        mode, togglestats, pagestats, name);
+			title = g_strdup_printf("%s:%s | %s",
+			        togglestats, pagestats, name);
 
 		gtk_window_set_title(GTK_WINDOW(c->win), title);
 		g_free(title);
@@ -695,11 +670,10 @@ gettogglestats(Client *c)
 	togglestats[3] = curconfig[DiskCache].val.i ?       'D' : 'd';
 	togglestats[4] = curconfig[LoadImages].val.i ?      'I' : 'i';
 	togglestats[5] = curconfig[JavaScript].val.i ?      'S' : 's';
-	togglestats[7] = curconfig[Style].val.i ?           'M' : 'm';
-	togglestats[8] = curconfig[FrameFlattening].val.i ? 'F' : 'f';
-	togglestats[9] = curconfig[Certificate].val.i ?     'X' : 'x';
-	togglestats[10] = curconfig[StrictTLS].val.i ?      'T' : 't';
-	togglestats[11] = '\0';
+	togglestats[6] = curconfig[Style].val.i ?           'M' : 'm';
+	togglestats[7] = curconfig[FrameFlattening].val.i ? 'F' : 'f';
+	togglestats[8] = curconfig[Certificate].val.i ?     'X' : 'x';
+	togglestats[9] = curconfig[StrictTLS].val.i ?       'T' : 't';
 }
 
 void
@@ -1115,8 +1089,6 @@ cleanup(void)
 	g_free(scriptfile);
 	g_free(stylefile);
 	g_free(cachedir);
-	g_free(dldir);
-	g_free(dlstatus);
 	XCloseDisplay(dpy);
 }
 
@@ -1371,11 +1343,7 @@ winevent(GtkWidget *w, GdkEvent *e, Client *c)
 		updatetitle(c);
 		break;
 	case GDK_KEY_PRESS:
-		if (!curconfig[KioskMode].val.i &&
-		    !insertmode ||
-		    CLEANMASK(e->key.state) == (MODKEY|GDK_SHIFT_MASK) ||
-		    CLEANMASK(e->key.state) == (MODKEY) ||
-		    gdk_keyval_to_lower(e->key.keyval) == (GDK_KEY_Escape)) {
+		if (!curconfig[KioskMode].val.i) {
 			for (i = 0; i < LENGTH(keys); ++i) {
 				if (gdk_keyval_to_lower(e->key.keyval) ==
 				    keys[i].keyval &&
@@ -1754,7 +1722,8 @@ decideresource(WebKitPolicyDecision *d, Client *c)
 	if (webkit_response_policy_decision_is_mime_type_supported(r)) {
 		webkit_policy_decision_use(d);
 	} else {
-		webkit_policy_decision_download(d);
+		webkit_policy_decision_ignore(d);
+		download(c, res);
 	}
 }
 
@@ -1762,6 +1731,27 @@ void
 insecurecontent(WebKitWebView *v, WebKitInsecureContentEvent e, Client *c)
 {
 	c->insecure = 1;
+}
+
+void
+downloadstarted(WebKitWebContext *wc, WebKitDownload *d, Client *c)
+{
+	g_signal_connect(G_OBJECT(d), "notify::response",
+	                 G_CALLBACK(responsereceived), c);
+}
+
+void
+responsereceived(WebKitDownload *d, GParamSpec *ps, Client *c)
+{
+	download(c, webkit_download_get_response(d));
+	webkit_download_cancel(d);
+}
+
+void
+download(Client *c, WebKitURIResponse *r)
+{
+	Arg a = (Arg)DOWNLOAD(webkit_uri_response_get_uri(r), geturi(c));
+	spawn(c, &a);
 }
 
 void
@@ -1785,22 +1775,6 @@ destroywin(GtkWidget* w, Client *c)
 	destroyclient(c);
 	if (!clients)
 		gtk_main_quit();
-}
-
-gchar *
-parseuri(const gchar *uri) {
-	guint i;
-
-	for (i = 0; i < LENGTH(searchengines); i++) {
-		if (searchengines[i].token == NULL || searchengines[i].uri == NULL ||
-		    *(uri + strlen(searchengines[i].token)) != ' ')
-			continue;
-		if (g_str_has_prefix(uri, searchengines[i].token))
-			return g_strdup_printf(searchengines[i].uri,
-					       uri + strlen(searchengines[i].token) + 1);
-	}
-
-	return g_strdup_printf("http://%s", uri);
 }
 
 void
@@ -1989,13 +1963,6 @@ find(Client *c, const Arg *a)
 }
 
 void
-insert(Client *c, const Arg *a)
-{
-		insertmode = (a->i);
-    updatetitle(c);
-}
-
-void
 clicknavigate(Client *c, const Arg *a, WebKitHitTestResult *h)
 {
 	navigate(c, a);
@@ -2016,81 +1983,6 @@ clickexternplayer(Client *c, const Arg *a, WebKitHitTestResult *h)
 	Arg arg;
 
 	arg = (Arg)VIDEOPLAY(webkit_hit_test_result_get_media_uri(h));
-	spawn(c, &arg);
-}
-
-/* download-console */
-
-void
-downloadstarted(WebKitWebContext *wc, WebKitDownload *d, Client *c)
-{
-	webkit_download_set_allow_overwrite(d, TRUE);
-	g_signal_connect(G_OBJECT(d), "decide-destination",
-	                 G_CALLBACK(decidedestination), NULL);
-	g_signal_connect(G_OBJECT(d), "notify::estimated-progress",
-	                 G_CALLBACK(printprogress), NULL);
-	g_signal_connect(G_OBJECT(d), "failed",
-	                 G_CALLBACK(downloadfailed), NULL);
-	g_signal_connect(G_OBJECT(d), "finished",
-	                 G_CALLBACK(downloadfinished), NULL);
-}
-
-void
-downloadfailed(WebKitDownload *d, GParamSpec *ps, void *arg)
-{
-	logdownload(d, " -- FAILED");
-}
-
-void
-downloadfinished(WebKitDownload *d, GParamSpec *ps, void *arg)
-{
-	logdownload(d, " -- COMPLETED");
-}
-
-gboolean
-decidedestination(WebKitDownload *d, gchar *suggested_filename, void *arg)
-{
-	gchar *dest;
-	dest = g_strdup_printf("file://%s/%s", dldir, suggested_filename);
-	webkit_download_set_destination(d, dest);
-	return TRUE;
-}
-
-void
-printprogress(WebKitDownload *d, GParamSpec *ps, void *arg)
-{
-	logdownload(d, "");
-}
-
-void
-logdownload(WebKitDownload *d, gchar *tail)
-{
-	gchar *filename, *statfile;
-	FILE *stat;
-
-	filename = g_path_get_basename(webkit_download_get_destination(d));
-	statfile = g_strdup_printf("%s/%s", dlstatus, filename);
-
-	if ((stat = fopen(statfile, "w")) == NULL) {
-		perror("dlstatus");
-	} else {
-		fprintf(stat, "%s: %d%% (%d.%ds)%s\n",
-		        filename,
-		        (int)(webkit_download_get_estimated_progress(d) * 100),
-		        (int) webkit_download_get_elapsed_time(d),
-		        (int)(webkit_download_get_elapsed_time(d) * 100),
-		        tail);
-		fclose(stat);
-	}
-
-	g_free(statfile);
-	g_free(filename);
-}
-
-void
-spawndls(Client *c, const Arg *a)
-{
-	Arg arg = (Arg)DLSTATUS;
 	spawn(c, &arg);
 }
 
